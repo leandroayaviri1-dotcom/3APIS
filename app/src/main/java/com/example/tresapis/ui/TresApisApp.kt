@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tresapis.viewmodel.AgentesViewModel
+import com.example.tresapis.viewmodel.FavoritosViewModel
 import com.example.tresapis.viewmodel.PersonajesViewModel
 import com.example.tresapis.viewmodel.PokemonViewModel
 
@@ -27,6 +28,7 @@ fun TresApisApp() {
     val personajes: PersonajesViewModel = viewModel()
     val pokemon: PokemonViewModel = viewModel()
     val agentes: AgentesViewModel = viewModel()
+    val favoritos: FavoritosViewModel = viewModel()
     var actual by rememberSaveable { mutableStateOf(Seccion.RICK_MORTY) }
 
     Scaffold(
@@ -46,7 +48,7 @@ fun TresApisApp() {
         val modifier = Modifier.padding(padding)
         when (actual) {
             Seccion.RICK_MORTY -> PersonajesPantalla(personajes, modifier)
-            Seccion.POKEMON -> PokemonPantalla(pokemon, modifier)
+            Seccion.POKEMON -> PokemonPantalla(pokemon, favoritos, modifier)
             Seccion.VALORANT -> AgentesPantalla(agentes, modifier)
         }
     }

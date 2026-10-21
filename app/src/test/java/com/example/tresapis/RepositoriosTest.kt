@@ -1,7 +1,12 @@
 package com.example.tresapis
 
+import com.example.tresapis.local.PokemonCacheDao
+import com.example.tresapis.local.PokemonCacheEntity
 import com.example.tresapis.repository.*
 import com.example.tresapis.modelo.Estadistica
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -11,6 +16,16 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+
+/** Caché en memoria para probar el repositorio sin una base de datos real. */
+private class CacheFalsa(inicial: List<PokemonCacheEntity> = emptyList()) : PokemonCacheDao {
+    val filas = MutableStateFlow(inicial)
+    override fun observarTodos(): Flow<List<PokemonCacheEntity>> = filas
+    override suspend fun contar() = filas.value.size
+    override suspend fun insertarTodos(pokemon: List<PokemonCacheEntity>) {
+        filas.value = (filas.value + pokemon).distinctBy { it.id }.sortedBy { it.id }
+    }
+}
 
 class RepositoriosTest {
     private lateinit var server: MockWebServer
@@ -41,12 +56,24 @@ class RepositoriosTest {
         assertEquals("No hay personajes que coincidan con la búsqueda.", e?.message)
     }
 
-    @Test fun pokemonListaCalculaIdEImagen() = runBlocking {
+    @Test fun pokemonSiguientePaginaEmpiezaDondeTerminaLaCacheYSeGuarda() = runBlocking {
         responder("""{"count":1351,"next":"n","results":[{"name":"pikachu","url":"https://pokeapi.co/api/v2/pokemon/25/"}]}""")
-        val r = PokemonRepository(servicio()).listar(desde = 30)
+        val cache = CacheFalsa(List(30) { PokemonCacheEntity(it + 1000, "p$it", "img") })
+        val repo = PokemonRepository(servicio(), cache)
+        val r = repo.cargarSiguientePagina()
         assertEquals("/pokemon?limit=30&offset=30", server.takeRequest().path)
-        assertEquals(25, r.pokemon.single().id)
-        assertTrue(r.pokemon.single().imagen.endsWith("/official-artwork/25.png"))
+        assertEquals(1351, r.total)
+        val guardado = repo.observarPokemon().first().first()
+        assertEquals(25, guardado.id)
+        assertTrue(guardado.imagen.endsWith("/official-artwork/25.png"))
+    }
+
+    @Test fun pokemonSinInternetNoBorraLaCache() = runBlocking {
+        responder("{}", 500)
+        val cache = CacheFalsa(listOf(PokemonCacheEntity(1, "Bulbasaur", "img")))
+        val e = runCatching { PokemonRepository(servicio(), cache).cargarSiguientePagina() }.exceptionOrNull()
+        assertTrue(e is ApiException)
+        assertEquals(1, cache.contar())
     }
 
     @Test fun pokemonDetalleNormalizaNombreYLeeCamposConGuion() = runBlocking {
@@ -54,7 +81,7 @@ class RepositoriosTest {
             "types":[{"type":{"name":"electric"}}],"stats":[{"base_stat":35,"stat":{"name":"hp"}}],
             "abilities":[{"ability":{"name":"static"}}],
             "sprites":{"front_default":"f","other":{"official-artwork":{"front_default":"art"}}}}""")
-        val p = PokemonRepository(servicio()).detalle("  Pikachu ")
+        val p = PokemonRepository(servicio(), CacheFalsa()).detalle("  Pikachu ")
         assertEquals("/pokemon/pikachu", server.takeRequest().path)
         assertEquals(Estadistica("PS", 35), p.estadisticas.single())
         assertEquals("art", p.imagen)

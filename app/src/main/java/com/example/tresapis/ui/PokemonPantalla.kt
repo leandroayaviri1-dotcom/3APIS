@@ -1,13 +1,17 @@
 package com.example.tresapis.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -17,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.tresapis.modelo.PokemonDetalle
+import com.example.tresapis.viewmodel.FavoritosViewModel
 import com.example.tresapis.viewmodel.PokemonViewModel
 import java.util.Locale
 
@@ -34,7 +39,44 @@ private val tipos = mapOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PokemonPantalla(viewModel: PokemonViewModel, modifier: Modifier = Modifier) {
+fun PokemonPantalla(
+    viewModel: PokemonViewModel,
+    favoritosViewModel: FavoritosViewModel,
+    modifier: Modifier = Modifier
+) {
+    val estado by viewModel.estado.collectAsStateWithLifecycle()
+    var verFavoritos by rememberSaveable { mutableStateOf(false) }
+
+    // El botón "atrás" del teléfono regresa de Favoritos a la Pokédex.
+    BackHandler(enabled = verFavoritos) { verFavoritos = false }
+
+    if (verFavoritos) {
+        FavoritosPantalla(favoritosViewModel, onVolver = { verFavoritos = false },
+            onPokemonClick = viewModel::seleccionar, modifier = modifier)
+    } else {
+        ListaPokemon(viewModel, onVerFavoritos = { verFavoritos = true }, modifier = modifier)
+    }
+
+    // El detalle se abre igual desde la Pokédex y desde Favoritos.
+    if (estado.seleccionado != null) {
+        ModalBottomSheet(onDismissRequest = viewModel::cerrarDetalle) {
+            Box(Modifier.fillMaxWidth().padding(bottom = 32.dp), contentAlignment = Alignment.Center) {
+                when {
+                    estado.cargandoDetalle -> CircularProgressIndicator(Modifier.padding(32.dp))
+                    estado.errorDetalle != null -> Box(Modifier.padding(20.dp)) {
+                        MensajeError(estado.errorDetalle!!) { viewModel.seleccionar(estado.seleccionado!!) }
+                    }
+                    estado.detalle != null -> DetallePokemon(
+                        estado.detalle!!, estado.detalleEsFavorito, viewModel::alternarFavoritoDetalle
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ListaPokemon(viewModel: PokemonViewModel, onVerFavoritos: () -> Unit, modifier: Modifier) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val fondoTarjeta = Brush.verticalGradient(listOf(RojoPokebola.copy(alpha = 0.18f), Color.Transparent))
 
@@ -45,52 +87,59 @@ fun PokemonPantalla(viewModel: PokemonViewModel, modifier: Modifier = Modifier) 
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ancho { Encabezado("POKÉAPI", "Pokédex", "Toca un Pokémon para ver sus estadísticas.", RojoPokebola) }
+        ancho {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    Encabezado("POKÉAPI", "Pokédex", "Toca un Pokémon para ver sus estadísticas.", RojoPokebola)
+                }
+                FilledTonalIconButton(onClick = onVerFavoritos) {
+                    Icon(Icons.Default.Favorite, contentDescription = "Ver favoritos", tint = Color(0xFFE53935))
+                }
+            }
+        }
         ancho {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 CampoBusqueda(
                     estado.busqueda, viewModel::cambiarBusqueda, viewModel::buscar,
                     "Nombre o número exacto", onLimpiar = viewModel::limpiarBusqueda
                 )
-                if (estado.total > 1) Text("Mostrando ${estado.pokemon.size} de ${estado.total} Pokémon",
+                if (estado.resultadoBusqueda == null && estado.total > 0) Text("Mostrando ${estado.pokemon.size} de ${estado.total} Pokémon",
                     style = MaterialTheme.typography.bodySmall)
             }
         }
-        estado.error?.let { error -> ancho { MensajeError(error, viewModel::reintentar) } }
+        // Sin nada que mostrar el error va arriba; con la lista guardada va al final, junto a "Cargar más".
+        if (estado.pokemon.isEmpty()) estado.error?.let { error -> ancho { MensajeError(error, viewModel::reintentar) } }
         items(estado.pokemon, key = { it.id }) { pokemon ->
             TarjetaImagen(
                 imagen = pokemon.imagen, titulo = pokemon.nombre,
                 subtitulo = "#%04d".format(pokemon.id), fondo = fondoTarjeta,
-                onClick = { viewModel.seleccionar(pokemon.id) }
+                onClick = { viewModel.seleccionar(pokemon.id) },
+                esFavorito = pokemon.id in estado.favoritosIds,
+                onFavoritoClick = { viewModel.alternarFavorito(pokemon) }
             )
         }
-        ancho { PieLista(estado.cargando, estado.hayMas && estado.error == null, viewModel::cargarMas) }
-    }
-
-    if (estado.seleccionado != null) {
-        ModalBottomSheet(onDismissRequest = viewModel::cerrarDetalle) {
-            Box(Modifier.fillMaxWidth().padding(bottom = 32.dp), contentAlignment = Alignment.Center) {
-                when {
-                    estado.cargandoDetalle -> CircularProgressIndicator(Modifier.padding(32.dp))
-                    estado.errorDetalle != null -> Box(Modifier.padding(20.dp)) {
-                        MensajeError(estado.errorDetalle!!) { viewModel.seleccionar(estado.seleccionado!!) }
-                    }
-                    estado.detalle != null -> DetallePokemon(estado.detalle!!)
-                }
-            }
+        if (estado.pokemon.isNotEmpty()) estado.error?.let { error ->
+            ancho { MensajeError(error, viewModel::reintentar) }
+        }
+        ancho {
+            PieLista(estado.cargando, estado.hayMas && estado.error == null && estado.resultadoBusqueda == null,
+                viewModel::cargarMas)
         }
     }
 }
 
 @Composable
-private fun DetallePokemon(pokemon: PokemonDetalle) {
+private fun DetallePokemon(pokemon: PokemonDetalle, esFavorito: Boolean, onFavoritoClick: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AsyncImage(model = pokemon.imagen, contentDescription = pokemon.nombre, modifier = Modifier.size(180.dp))
         Text("#%04d".format(pokemon.id), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(pokemon.nombre, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(pokemon.nombre, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            BotonFavorito(esFavorito, onFavoritoClick)
+        }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             pokemon.tipos.forEach { tipo ->

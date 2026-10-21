@@ -10,6 +10,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -76,7 +78,10 @@ fun TarjetaImagen(
     subtitulo: String,
     onClick: () -> Unit,
     fondo: Brush? = null,
-    insignia: (@Composable () -> Unit)? = null
+    insignia: (@Composable () -> Unit)? = null,
+    // null = la tarjeta no muestra corazón (Rick & Morty y Valorant).
+    esFavorito: Boolean? = null,
+    onFavoritoClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
@@ -96,12 +101,25 @@ fun TarjetaImagen(
                 contentScale = if (fondo == null) ContentScale.Crop else ContentScale.Fit
             )
             if (insignia != null) Box(Modifier.align(Alignment.TopStart).padding(8.dp)) { insignia() }
+            if (esFavorito != null) BotonFavorito(esFavorito, onFavoritoClick, Modifier.align(Alignment.TopEnd))
         }
         Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Text(titulo, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitulo, style = MaterialTheme.typography.bodySmall, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+/** La tarjeta no sabe de Room: solo recibe si es favorito y avisa cuando se toca. */
+@Composable
+fun BotonFavorito(esFavorito: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onClick, modifier = modifier) {
+        Icon(
+            imageVector = if (esFavorito) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+            contentDescription = if (esFavorito) "Quitar de favoritos" else "Agregar a favoritos",
+            tint = if (esFavorito) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
