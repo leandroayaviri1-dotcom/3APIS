@@ -103,11 +103,12 @@ private fun ListaPokemon(viewModel: PokemonViewModel, onVerFavoritos: () -> Unit
                     estado.busqueda, viewModel::cambiarBusqueda, viewModel::buscar,
                     "Nombre o número exacto", onLimpiar = viewModel::limpiarBusqueda
                 )
-                if (estado.resultadoBusqueda == null && estado.total > 0) Text("Mostrando ${estado.pokemon.size} de ${estado.total} Pokémon",
+                if (estado.total > 1) Text("Mostrando ${estado.pokemon.size} de ${estado.total} Pokémon",
                     style = MaterialTheme.typography.bodySmall)
             }
         }
-        // Sin nada que mostrar el error va arriba; con la lista guardada va al final, junto a "Cargar más".
+        estado.errorFavorito?.let { error -> ancho { MensajeError(error, viewModel::recargarFavoritos) } }
+        // Sin nada que mostrar el error va arriba; con la lista cargada va al final, junto a "Cargar más".
         if (estado.pokemon.isEmpty()) estado.error?.let { error -> ancho { MensajeError(error, viewModel::reintentar) } }
         items(estado.pokemon, key = { it.id }) { pokemon ->
             TarjetaImagen(
@@ -122,8 +123,7 @@ private fun ListaPokemon(viewModel: PokemonViewModel, onVerFavoritos: () -> Unit
             ancho { MensajeError(error, viewModel::reintentar) }
         }
         ancho {
-            PieLista(estado.cargando, estado.hayMas && estado.error == null && estado.resultadoBusqueda == null,
-                viewModel::cargarMas)
+            PieLista(estado.cargando, estado.hayMas && estado.error == null, viewModel::cargarMas)
         }
     }
 }

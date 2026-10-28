@@ -36,6 +36,17 @@ API  →  Repository  →  (DTO → Mapper → Modelo)  →  ViewModel  →  Vie
 - `repository/ApiException.kt` traduce los errores (sin Internet, 404, tiempo agotado…) a mensajes en español.
 - `ui/` también contiene los componentes compartidos, el tema y `TresApisApp.kt`, que tiene la navegación inferior.
 
+## Favoritos en SQLite Cloud
+
+Los Pokémon favoritos se guardan en una base de **SQLite Cloud**, no en el teléfono. La app llama con Retrofit (`api/SqliteCloudApi.kt`) a tres Edge Functions escritas en SQL en el panel de SQLite Cloud: `favoritos`, `agregar_favorito` y `quitar_favorito`.
+
+Para compilar hay que agregar a `local.properties` (no se sube a GitHub):
+
+```
+SQLITECLOUD_URL=https://<tu-proyecto>.gateway.sqlite.cloud
+SQLITECLOUD_API_KEY=<tu-api-key>
+```
+
 ## Pruebas
 
 `app/src/test/.../RepositoriosTest.kt` usa MockWebServer para comprobar los parámetros enviados a cada API, la conversión del JSON y los mensajes de error. `MappersTest.kt` comprueba que cada mapper convierta bien el DTO en el modelo. Se ejecutan con:

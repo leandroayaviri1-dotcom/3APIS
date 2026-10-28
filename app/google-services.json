@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "887012733464",
+    "project_id": "tresapis",
+    "storage_bucket": "tresapis.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:887012733464:android:9b0b8d28bf8c583c12496d",
+        "android_client_info": {
+          "package_name": "com.example.tresapis"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTgAhVUec8bIh4qPujFJxSPZWoiwJv_-M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

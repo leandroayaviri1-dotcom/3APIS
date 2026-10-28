@@ -39,12 +39,14 @@ fun FavoritosPantalla(
                 IconButton(onClick = onVolver) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver a la Pokédex")
                 }
-                Encabezado("GUARDADOS EN EL TELÉFONO", "Favoritos",
-                    "Se ven aunque no haya Internet.", RojoPokebola)
+                Encabezado("GUARDADOS EN SQLITE CLOUD", "Favoritos",
+                    "Se guardan en la nube: hace falta Internet.", RojoPokebola)
             }
         }
+        estado.error?.let { error -> ancho { MensajeError(error, viewModel::recargar) } }
         when {
-            estado.cargando -> ancho { PieLista(cargando = true, hayMas = false) {} }
+            estado.cargando && estado.favoritos.isEmpty() -> ancho { PieLista(cargando = true, hayMas = false) {} }
+            estado.error != null && estado.favoritos.isEmpty() -> {}
             estado.favoritos.isEmpty() -> ancho {
                 Text("Aún no tienes favoritos. Toca el corazón de un Pokémon para guardarlo.",
                     textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 32.dp))

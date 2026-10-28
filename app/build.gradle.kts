@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
+    id("com.google.gms.google-services")
 }
+
+// La URL y la clave de SQLite Cloud viven en local.properties (no se sube a GitHub).
+val local = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+fun propiedadLocal(nombre: String) = local.getProperty(nombre, "").trim().trimEnd('/')
 
 android {
     namespace = "com.example.tresapis"
@@ -14,8 +22,13 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "SQLITECLOUD_URL", "\"${propiedadLocal("SQLITECLOUD_URL")}\"")
+        buildConfigField("String", "SQLITECLOUD_API_KEY", "\"${propiedadLocal("SQLITECLOUD_API_KEY")}\"")
     }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -38,9 +51,11 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")      // Flow y suspend en los DAO
-    ksp("androidx.room:room-compiler:2.6.1")            // genera el código de Room
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    // Firebase Authentication
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-auth")
+    // .await() sobre las tareas de Firebase
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 }
